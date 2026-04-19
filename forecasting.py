@@ -1,4 +1,5 @@
-# Implements forecasting models and generates predictions with confidence intervals. Computes holdout and rolling backtest metrics for model evaluation.
+# Implements forecasting models and generates predictions with confidence intervals
+# Computes holdout and rolling backtest metrics for model evaluation
 
 from __future__ import annotations
 
@@ -348,14 +349,27 @@ def _fit_and_forecast_xgb(
     rolling_windows = list(xgb_cfg.get("rolling_windows", [5, 10]))
     feature_cols = _xgb_feature_cols(lags, rolling_windows)
 
-    feat = _build_xgb_features(prepared, lags=lags, rolling_windows=rolling_windows)
-    if len(feat) <= holdout_size + 20:
+    train_data = prepared.iloc[:-holdout_size].copy()
+    test_data = prepared.iloc[-holdout_size:].copy()
+
+    train_feat = _build_xgb_features(train_data, lags=lags, rolling_windows=rolling_windows)
+    if len(train_feat) <= 20:
         raise ValueError("Not enough feature rows for XGB holdout evaluation.")
 
-    train_feat = feat.iloc[:-holdout_size].copy()
-    test_feat = feat.iloc[-holdout_size:].copy()
-
     model = _fit_xgb_model(train_feat, xgb_cfg=xgb_cfg, feature_cols=feature_cols)
+
+    # Generate test features row-by-row against an expanding history that only
+    # contains true past values, preventing any look-ahead from rolling statistics.
+    test_rows = []
+    expanding_hist = train_data[["ds", "value"]].copy()
+    for row in test_data.itertuples(index=False):
+        feat_row = _make_feature_row(expanding_hist, lags, rolling_windows, pd.Timestamp(row.ds))
+        test_rows.append({"ds": row.ds, "target": row.value, **feat_row})
+        expanding_hist = pd.concat(
+            [expanding_hist, pd.DataFrame([{"ds": row.ds, "value": row.value}])],
+            ignore_index=True,
+        )
+    test_feat = pd.DataFrame(test_rows)
 
     test_pred_vals = model.predict(test_feat[feature_cols])
 
@@ -412,9 +426,9 @@ def _fit_and_forecast_xgb(
         "damped_trend": None,
         "winsorize_returns": winsorize_returns,
         "n_obs": int(len(data)),
-        "train_end": str(test_feat["ds"].min().date()),
-        "test_start": str(test_feat["ds"].min().date()),
-        "test_end": str(test_feat["ds"].max().date()),
+        "train_end": str(train_data["ds"].max().date()),
+        "test_start": str(test_data["ds"].min().date()),
+        "test_end": str(test_data["ds"].max().date()),
         "recent_trend_5d_pct": _calc_recent_trend_5d_pct(data["value"]),
         "anomaly_count": _calc_anomaly_count(data["value"]),
         "xgb_lags": lags,
@@ -425,10 +439,10 @@ def _fit_and_forecast_xgb(
         "xgb_residual_sigma": sigma,
     }
 
-    holdout_actual_df = test_feat[["ds", "target"]].rename(columns={"target": "value"}).copy()
+    holdout_actual_df = test_data[["ds", "value"]].copy()
     holdout_pred_df = pd.DataFrame(
         {
-            "ds": test_feat["ds"].values,
+            "ds": test_data["ds"].values,
             "yhat": test_pred_vals,
         }
     )

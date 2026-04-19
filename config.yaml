@@ -1,5 +1,3 @@
-# Central configuration file controlling data source, model parameters, validation settings, and agent behavior. Dynamically updated between runs
-
 series:
   source: yfinance
   symbol: AAPL
@@ -12,16 +10,16 @@ forecast:
   horizon: 7
   holdout_size: 30
   model_family: ETS
-  seasonal: add
-  seasonal_periods: 5
-  damped_trend: true
-  winsorize_returns: true
+  seasonal: null
+  seasonal_periods: null
+  damped_trend: false
+  winsorize_returns: false
   ensemble_components:
   - ETS
   - XGB
 validation:
   scheme: rolling_backtest
-  rolling_backtest_windows: 60
+  rolling_backtest_windows: 40
 xgb:
   lags:
   - 1

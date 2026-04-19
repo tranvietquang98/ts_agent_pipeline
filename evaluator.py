@@ -49,7 +49,7 @@ class ImprovementAction(BaseModel):
         "validation.scheme",
         "validation.rolling_backtest_windows"
     ]
-    action: Literal["set", "increase", "decrease"]
+    action: Literal["set"]
     new_value: str | bool | int | float | None = Field(description="Use an absolute target value in most cases.")
     rationale: str
 
@@ -127,7 +127,7 @@ def _sanitize_improvement_actions(actions: list[dict[str, Any]]) -> list[dict[st
         if parameter not in SUPPORTED_PARAMETERS:
             continue
 
-        if action not in {"set", "increase", "decrease"}:
+        if action not in {"set"}:
             action = "set"
 
         new_value = _normalize_parameter_value(parameter, new_value)

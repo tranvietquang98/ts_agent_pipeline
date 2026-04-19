@@ -24,7 +24,7 @@ ALLOWED_PARAMETERS: dict[str, tuple[type, ...]] = {
 }
 
 # Supported action labels from the evaluator
-ALLOWED_ACTIONS = {"set", "increase", "decrease"}
+ALLOWED_ACTIONS = {"set"}
 
 # Optional bounds for numeric parameters
 NUMERIC_BOUNDS: dict[str, tuple[int | float | None, int | float | None]] = {
@@ -139,10 +139,6 @@ def _resolve_new_value(parameter: str, action: str, old_value: Any, new_value: A
 
     if action == "set":
         resolved = new_value
-
-    elif action in {"increase", "decrease"}:
-            resolved = new_value
-
     else:
         raise ValueError(f"Unsupported action: {action}")
 
@@ -215,7 +211,9 @@ def apply_improvements(
         cursor_new[leaf] = resolved_value
         store.append_config_change(now, parameter, str(old_value), str(resolved_value), rationale)
 
-    path.write_text(yaml.safe_dump(new_cfg, sort_keys=False), encoding="utf-8")
+    new_yaml = yaml.safe_dump(new_cfg, sort_keys=False)
+    if new_yaml != yaml.safe_dump(cfg, sort_keys=False):
+        path.write_text(new_yaml, encoding="utf-8")
 
     # Return config plus debug metadata to make behavior easier to inspect.
     result = deepcopy(new_cfg)
