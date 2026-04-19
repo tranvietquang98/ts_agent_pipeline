@@ -1,0 +1,46 @@
+# Central configuration file controlling data source, model parameters, validation settings, and agent behavior. Dynamically updated between runs
+
+series:
+  source: yfinance
+  symbol: AAPL
+  field: Close
+  interval: 1d
+  period: 2y
+storage:
+  sqlite_path: pipeline.db
+forecast:
+  horizon: 7
+  holdout_size: 30
+  model_family: ETS
+  seasonal: add
+  seasonal_periods: 5
+  damped_trend: true
+  winsorize_returns: true
+  ensemble_components:
+  - ETS
+  - XGB
+validation:
+  scheme: rolling_backtest
+  rolling_backtest_windows: 60
+xgb:
+  lags:
+  - 1
+  - 2
+  - 3
+  - 5
+  - 10
+  rolling_windows:
+  - 5
+  - 10
+  max_depth: 4
+  learning_rate: 0.05
+  n_estimators: 300
+  subsample: 0.9
+  colsample_bytree: 0.9
+  min_child_weight: 3
+  random_state: 42
+agent:
+  model: gpt-5.4
+  use_openai_if_available: true
+output:
+  keep_history_runs: 20
